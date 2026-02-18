@@ -1,0 +1,14 @@
+[Unit]
+Description=LIQTracker Streamlit Service
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/umbrel/.openclaw/workspace/LIQTracker
+EnvironmentFile=/home/umbrel/.openclaw/workspace/LIQTracker/.env
+ExecStart=/home/umbrel/.openclaw/workspace/LIQTracker/.venv/bin/streamlit run app.py --server.port 8503 --server.address 0.0.0.0
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

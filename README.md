@@ -27,7 +27,31 @@ cp .env.example .env
 streamlit run app.py
 ```
 
-Open: http://localhost:8501
+Open: http://localhost:8503
+
+## Run as a background service (systemd user service)
+
+A user service file was installed at:
+
+- `~/.config/systemd/user/liqtracker.service`
+
+Useful commands:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now liqtracker.service
+systemctl --user status liqtracker.service
+journalctl --user -u liqtracker.service -f
+```
+
+Stop/restart:
+
+```bash
+systemctl --user stop liqtracker.service
+systemctl --user restart liqtracker.service
+```
+
+The app listens on `0.0.0.0:8503`.
 
 ## Improve accuracy
 
