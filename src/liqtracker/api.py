@@ -34,8 +34,8 @@ def fetch_token_transfers(wallet: str, api_key: str = "", start_block: int = 0, 
     params: dict = {}
     seen_pages: set[str] = set()
 
-    # Pull multiple pages for coverage.
-    for _page in range(25):
+    # Pull recent pages for responsiveness in UI.
+    for _page in range(8):
         page_key = repr(sorted(params.items()))
         if page_key in seen_pages:
             break
@@ -59,10 +59,15 @@ def fetch_token_transfers(wallet: str, api_key: str = "", start_block: int = 0, 
 
             total = it.get("total") or {}
             token = it.get("token") or {}
+            from_obj = it.get("from") or {}
+            to_obj = it.get("to") or {}
             items.append(
                 {
-                    "from": ((it.get("from") or {}).get("hash") or "").lower(),
-                    "to": ((it.get("to") or {}).get("hash") or "").lower(),
+                    "from": (from_obj.get("hash") or "").lower(),
+                    "to": (to_obj.get("hash") or "").lower(),
+                    "from_name": str(from_obj.get("name") or ""),
+                    "to_name": str(to_obj.get("name") or ""),
+                    "method": str(it.get("method") or ""),
                     "hash": str(it.get("transaction_hash") or "").lower(),
                     "timeStamp": str(_to_unix(it.get("timestamp"))),
                     "tokenSymbol": str(token.get("symbol") or "?"),
@@ -90,7 +95,7 @@ def fetch_normal_transactions(wallet: str, api_key: str = "", start_block: int =
     params: dict = {}
     seen_pages: set[str] = set()
 
-    for _page in range(25):
+    for _page in range(8):
         page_key = repr(sorted(params.items()))
         if page_key in seen_pages:
             break
@@ -108,11 +113,16 @@ def fetch_normal_transactions(wallet: str, api_key: str = "", start_block: int =
             if block_number > end_block:
                 continue
 
+            to_obj = it.get("to") or {}
+            from_obj = it.get("from") or {}
             items.append(
                 {
                     "hash": str(it.get("hash") or "").lower(),
-                    "from": ((it.get("from") or {}).get("hash") or "").lower(),
-                    "to": ((it.get("to") or {}).get("hash") or "").lower(),
+                    "from": (from_obj.get("hash") or "").lower(),
+                    "to": (to_obj.get("hash") or "").lower(),
+                    "from_name": str(from_obj.get("name") or ""),
+                    "to_name": str(to_obj.get("name") or ""),
+                    "method": str(it.get("method") or ""),
                     "timeStamp": str(_to_unix(it.get("timestamp"))),
                     "blockNumber": str(block_number),
                 }

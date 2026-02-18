@@ -8,7 +8,7 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from src.liqtracker.analysis import classify_flows, summarize
-from src.liqtracker.api import fetch_normal_transactions, fetch_token_prices_usd, fetch_token_transfers
+from src.liqtracker.api import fetch_token_prices_usd, fetch_token_transfers
 from src.liqtracker.config import DEFAULT_AERODROME_CONTRACTS
 
 ENV_PATH = Path(__file__).resolve().parent / ".env"
@@ -70,25 +70,17 @@ if run:
     if custom_contracts.strip():
         protocol_contracts |= {x.strip() for x in custom_contracts.splitlines() if x.strip()}
 
-    with st.spinner("Fetching transfers + tx history from Basescan..."):
-        transfers = fetch_token_transfers(wallet=wallet, api_key=api_key, start_block=int(start_block), end_block=int(end_block))
-        normal_txs = fetch_normal_transactions(wallet=wallet, api_key=api_key, start_block=int(start_block), end_block=int(end_block))
-
-    # Any transaction where wallet called/was-called by core Aerodrome contracts
-    # is treated as Aerodrome-related; then we include token transfers from those tx hashes.
-    core_contracts = {c.lower() for c in DEFAULT_AERODROME_CONTRACTS}
-    aero_hashes = {
-        str(tx.get("hash", "")).lower()
-        for tx in normal_txs
-        if str(tx.get("to", "")).lower() in core_contracts
-        or str(tx.get("from", "")).lower() in core_contracts
-    }
+    try:
+        with st.spinner("Fetching token transfers..."):
+            transfers = fetch_token_transfers(wallet=wallet, api_key=api_key, start_block=int(start_block), end_block=int(end_block))
+    except Exception as e:
+        st.error(f"Data fetch failed: {e}")
+        st.stop()
 
     flows = classify_flows(
         transfers=transfers,
         wallet=wallet,
         protocol_contracts=protocol_contracts,
-        aerodrome_tx_hashes=aero_hashes,
     )
 
     if not flows:
@@ -99,13 +91,16 @@ if run:
         with st.expander("Debug info"):
             st.write({
                 "token_transfer_count": len(transfers),
-                "normal_tx_count": len(normal_txs),
-                "aerodrome_tagged_tx_hashes": len(aero_hashes),
+                "aerodrome_flow_count": 0,
             })
         st.stop()
 
-    token_prices = fetch_token_prices_usd({f.token_contract for f in flows})
-    detail_df, summary_df, kpis = summarize(flows, token_prices)
+    try:
+        token_prices = fetch_token_prices_usd({f.token_contract for f in flows})
+        detail_df, summary_df, kpis = summarize(flows, token_prices)
+    except Exception as e:
+        st.error(f"Analysis failed: {e}")
+        st.stop()
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Deposited (USD now)", f"${kpis['total_deposit_usd_now']:,.2f}")

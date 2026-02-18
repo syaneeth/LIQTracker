@@ -18,15 +18,20 @@ def classify_flows(
     aero_hashes = {h.lower() for h in (aerodrome_tx_hashes or set())}
     flows: list[TrackedFlow] = []
 
+    aero_keywords = ("aerodrome", "nonfungiblepositionmanager", "slipstream", "universalrouter", "gauge", "pool")
+
     for t in transfers:
         from_addr = str(t.get("from", "")).lower()
         to_addr = str(t.get("to", "")).lower()
+        from_name = str(t.get("from_name", "")).lower()
+        to_name = str(t.get("to_name", "")).lower()
         tx_hash = str(t.get("hash", "")).lower()
 
         explicit_contract_match = (from_addr in contracts) or (to_addr in contracts)
         tx_level_match = tx_hash in aero_hashes
+        name_match = any(k in from_name or k in to_name for k in aero_keywords)
 
-        if not (explicit_contract_match or tx_level_match):
+        if not (explicit_contract_match or tx_level_match or name_match):
             continue
 
         if from_addr == wallet:
@@ -61,7 +66,7 @@ def classify_flows(
 
 def summarize(flows: list[TrackedFlow], token_prices: dict[str, float]) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
     rows = []
-    agg = defaultdict(lambda: {"deposited": 0.0, "inflow": 0.0})
+    agg = defaultdict(lambda: {"deposit": 0.0, "inflow": 0.0})
 
     for f in flows:
         px = token_prices.get(f.token_contract, 0.0)
@@ -86,7 +91,7 @@ def summarize(flows: list[TrackedFlow], token_prices: dict[str, float]) -> tuple
 
     summary_rows = []
     for token, data in agg.items():
-        dep = data["deposited"]
+        dep = data["deposit"]
         inflow = data["inflow"]
         net = inflow - dep
         summary_rows.append({"token": token, "deposited": dep, "inflow": inflow, "net": net})
