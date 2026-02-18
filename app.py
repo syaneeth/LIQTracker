@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
@@ -10,7 +11,27 @@ from src.liqtracker.analysis import classify_flows, summarize
 from src.liqtracker.api import fetch_normal_transactions, fetch_token_prices_usd, fetch_token_transfers
 from src.liqtracker.config import DEFAULT_AERODROME_CONTRACTS
 
-load_dotenv()
+ENV_PATH = Path(__file__).resolve().parent / ".env"
+load_dotenv(ENV_PATH)
+
+
+def persist_settings(api_key: str, wallet: str) -> None:
+    lines = []
+    if ENV_PATH.exists():
+        lines = ENV_PATH.read_text().splitlines()
+
+    kv = {}
+    for line in lines:
+        if "=" in line and not line.strip().startswith("#"):
+            k, v = line.split("=", 1)
+            kv[k.strip()] = v.strip()
+
+    kv["BASESCAN_API_KEY"] = api_key.strip()
+    kv["WALLET_ADDRESS"] = wallet.strip()
+
+    content = "\n".join([f"{k}={v}" for k, v in kv.items()]) + "\n"
+    ENV_PATH.write_text(content)
+
 
 st.set_page_config(page_title="LIQTracker", page_icon="💧", layout="wide")
 st.title("💧 LIQTracker — Aerodrome deposit profitability tracker")
@@ -29,12 +50,21 @@ with st.sidebar:
     start_block = st.number_input("Start block", value=0, min_value=0, step=1)
     end_block = st.number_input("End block", value=99_999_999, min_value=0, step=1)
 
-    run = st.button("Run scan", type="primary")
+    csave, crun = st.columns(2)
+    save_clicked = csave.button("Save settings")
+    run = crun.button("Run scan", type="primary")
+
+if save_clicked:
+    persist_settings(api_key=api_key, wallet=wallet)
+    st.success("Saved wallet + API key to .env")
 
 if run:
     if not wallet or not api_key:
         st.error("Please enter both wallet address and Basescan API key.")
         st.stop()
+
+    # Auto-save latest credentials/settings on successful run click.
+    persist_settings(api_key=api_key, wallet=wallet)
 
     protocol_contracts = set(DEFAULT_AERODROME_CONTRACTS)
     if custom_contracts.strip():
