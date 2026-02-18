@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-BASESCAN_API = "https://api.basescan.org/api"
+BASESCAN_API = "https://api.basescan.org/v2/api"
+BASE_CHAIN_ID = "8453"
 COINGECKO_SIMPLE_PRICE = "https://api.coingecko.com/api/v3/simple/token_price/base"
 
 # Known Aerodrome protocol contracts on Base. Keep expanding as needed.

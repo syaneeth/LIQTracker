@@ -35,12 +35,12 @@ def persist_settings(api_key: str, wallet: str) -> None:
 
 st.set_page_config(page_title="LIQTracker", page_icon="💧", layout="wide")
 st.title("💧 LIQTracker — Aerodrome deposit profitability tracker")
-st.caption("MVP: scans Base token transfers to/from known Aerodrome contracts and estimates PnL using current USD prices.")
+st.caption("MVP: scans Base token transfers and Aerodrome-linked transactions, then estimates PnL using current USD prices.")
 
 with st.sidebar:
     st.header("Settings")
     wallet = st.text_input("Wallet address", value=os.getenv("WALLET_ADDRESS", "")).strip()
-    api_key = st.text_input("Basescan API key", value=os.getenv("BASESCAN_API_KEY", ""), type="password").strip()
+    api_key = st.text_input("API key (optional)", value=os.getenv("BASESCAN_API_KEY", ""), type="password").strip()
     custom_contracts = st.text_area(
         "Extra Aerodrome contract addresses (one per line)",
         value="",
@@ -59,8 +59,8 @@ if save_clicked:
     st.success("Saved wallet + API key to .env")
 
 if run:
-    if not wallet or not api_key:
-        st.error("Please enter both wallet address and Basescan API key.")
+    if not wallet:
+        st.error("Please enter wallet address.")
         st.stop()
 
     # Auto-save latest credentials/settings on successful run click.

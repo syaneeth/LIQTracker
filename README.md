@@ -4,7 +4,7 @@ Track your Aerodrome (Base) liquidity deposit flows and estimate profitability i
 
 ## What this MVP does
 
-- Pulls wallet ERC-20 transfers from Basescan
+- Pulls wallet ERC-20 transfers from Base Blockscout API (no key required)
 - Filters transfers to/from known Aerodrome contracts
 - Classifies:
   - **deposit**: token moved from your wallet into Aerodrome contracts
@@ -23,7 +23,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# edit .env with BASESCAN_API_KEY + WALLET_ADDRESS
+# edit .env with WALLET_ADDRESS (API key optional)
 streamlit run app.py
 ```
 
