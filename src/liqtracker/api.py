@@ -53,6 +53,10 @@ def fetch_token_transfers(wallet: str, api_key: str = "", start_block: int = 0, 
             if block_number > end_block:
                 continue
 
+            token_type = str(it.get("token_type") or "")
+            if token_type and token_type.upper() not in {"ERC-20", "ERC20"}:
+                continue
+
             total = it.get("total") or {}
             token = it.get("token") or {}
             items.append(
@@ -123,6 +127,20 @@ def fetch_normal_transactions(wallet: str, api_key: str = "", start_block: int =
     return items
 
 
+def _fetch_prices_chunk(chunk: list[str]) -> dict[str, float]:
+    params = {
+        "contract_addresses": ",".join(chunk),
+        "vs_currencies": "usd",
+    }
+    r = requests.get(COINGECKO_SIMPLE_PRICE, params=params, timeout=30)
+    r.raise_for_status()
+    data = r.json()
+    out: dict[str, float] = {}
+    for c in chunk:
+        out[c] = float(data.get(c, {}).get("usd", 0.0) or 0.0)
+    return out
+
+
 def fetch_token_prices_usd(token_contracts: Iterable[str]) -> dict[str, float]:
     tokens = [t.lower() for t in token_contracts if t]
     if not tokens:
@@ -131,14 +149,16 @@ def fetch_token_prices_usd(token_contracts: Iterable[str]) -> dict[str, float]:
     out: dict[str, float] = {}
     for i in range(0, len(tokens), 100):
         chunk = tokens[i : i + 100]
-        params = {
-            "contract_addresses": ",".join(chunk),
-            "vs_currencies": "usd",
-        }
-        r = requests.get(COINGECKO_SIMPLE_PRICE, params=params, timeout=30)
-        r.raise_for_status()
-        data = r.json()
-        for c in chunk:
-            out[c] = float(data.get(c, {}).get("usd", 0.0) or 0.0)
+        try:
+            out.update(_fetch_prices_chunk(chunk))
+        except requests.HTTPError:
+            # Some addresses (e.g., non-ERC20 contracts/NFT contracts) can cause 400.
+            # Retry individually and ignore non-priceable addresses.
+            for c in chunk:
+                try:
+                    out.update(_fetch_prices_chunk([c]))
+                except requests.HTTPError:
+                    out[c] = 0.0
+                time.sleep(0.08)
         time.sleep(0.15)
     return out
