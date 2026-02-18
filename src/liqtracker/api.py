@@ -32,6 +32,21 @@ def fetch_token_transfers(wallet: str, api_key: str, start_block: int = 0, end_b
     return result if isinstance(result, list) else []
 
 
+def fetch_normal_transactions(wallet: str, api_key: str, start_block: int = 0, end_block: int = 99999999) -> list[dict]:
+    params = {
+        "module": "account",
+        "action": "txlist",
+        "address": wallet,
+        "startblock": start_block,
+        "endblock": end_block,
+        "sort": "asc",
+        "apikey": api_key,
+    }
+    data = _get(BASESCAN_API, params)
+    result = data.get("result", [])
+    return result if isinstance(result, list) else []
+
+
 def fetch_token_prices_usd(token_contracts: Iterable[str]) -> dict[str, float]:
     tokens = [t.lower() for t in token_contracts if t]
     if not tokens:

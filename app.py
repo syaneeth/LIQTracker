@@ -7,7 +7,7 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from src.liqtracker.analysis import classify_flows, summarize
-from src.liqtracker.api import fetch_token_prices_usd, fetch_token_transfers
+from src.liqtracker.api import fetch_normal_transactions, fetch_token_prices_usd, fetch_token_transfers
 from src.liqtracker.config import DEFAULT_AERODROME_CONTRACTS
 
 load_dotenv()
@@ -40,13 +40,38 @@ if run:
     if custom_contracts.strip():
         protocol_contracts |= {x.strip() for x in custom_contracts.splitlines() if x.strip()}
 
-    with st.spinner("Fetching transfers from Basescan..."):
+    with st.spinner("Fetching transfers + tx history from Basescan..."):
         transfers = fetch_token_transfers(wallet=wallet, api_key=api_key, start_block=int(start_block), end_block=int(end_block))
+        normal_txs = fetch_normal_transactions(wallet=wallet, api_key=api_key, start_block=int(start_block), end_block=int(end_block))
 
-    flows = classify_flows(transfers=transfers, wallet=wallet, protocol_contracts=protocol_contracts)
+    # Any transaction where wallet called/was-called by core Aerodrome contracts
+    # is treated as Aerodrome-related; then we include token transfers from those tx hashes.
+    core_contracts = {c.lower() for c in DEFAULT_AERODROME_CONTRACTS}
+    aero_hashes = {
+        str(tx.get("hash", "")).lower()
+        for tx in normal_txs
+        if str(tx.get("to", "")).lower() in core_contracts
+        or str(tx.get("from", "")).lower() in core_contracts
+    }
+
+    flows = classify_flows(
+        transfers=transfers,
+        wallet=wallet,
+        protocol_contracts=protocol_contracts,
+        aerodrome_tx_hashes=aero_hashes,
+    )
 
     if not flows:
-        st.warning("No matching Aerodrome-related token flows found for current contract set. Add more contract addresses in sidebar.")
+        st.warning(
+            "No Aerodrome-related token flows found in this block range. "
+            "Try widening block range and/or add known pool/gauge/position-manager contracts in sidebar."
+        )
+        with st.expander("Debug info"):
+            st.write({
+                "token_transfer_count": len(transfers),
+                "normal_tx_count": len(normal_txs),
+                "aerodrome_tagged_tx_hashes": len(aero_hashes),
+            })
         st.stop()
 
     token_prices = fetch_token_prices_usd({f.token_contract for f in flows})

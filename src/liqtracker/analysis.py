@@ -7,22 +7,37 @@ import pandas as pd
 from .config import TrackedFlow
 
 
-def classify_flows(transfers: list[dict], wallet: str, protocol_contracts: set[str]) -> list[TrackedFlow]:
+def classify_flows(
+    transfers: list[dict],
+    wallet: str,
+    protocol_contracts: set[str],
+    aerodrome_tx_hashes: set[str] | None = None,
+) -> list[TrackedFlow]:
     wallet = wallet.lower()
     contracts = {c.lower() for c in protocol_contracts}
+    aero_hashes = {h.lower() for h in (aerodrome_tx_hashes or set())}
     flows: list[TrackedFlow] = []
 
     for t in transfers:
         from_addr = str(t.get("from", "")).lower()
         to_addr = str(t.get("to", "")).lower()
+        tx_hash = str(t.get("hash", "")).lower()
 
-        if from_addr == wallet and to_addr in contracts:
+        explicit_contract_match = (from_addr in contracts) or (to_addr in contracts)
+        tx_level_match = tx_hash in aero_hashes
+
+        if not (explicit_contract_match or tx_level_match):
+            continue
+
+        if from_addr == wallet:
             direction = "deposit"
             counterparty = to_addr
-        elif to_addr == wallet and from_addr in contracts:
+        elif to_addr == wallet:
             direction = "inflow"
             counterparty = from_addr
         else:
+            # Wallet not sender/receiver on this transfer event
+            # (can happen for unrelated transfers within same tx)
             continue
 
         decimals = int(t.get("tokenDecimal") or 18)
